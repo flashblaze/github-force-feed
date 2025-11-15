@@ -1,0 +1,67 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Build for Chrome/Edge
+      run: bun run build
+
+    - name: Build for Firefox
+      run: bun run build:firefox
+
+    - name: Create Chrome/Edge zip
+      run: bun run zip
+
+    - name: Create Firefox zip
+      run: bun run zip:firefox
+
+    - name: Get version from tag
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: Release v${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          .output/*.zip
+        body: |
+          ## Installation Instructions
+
+          **Chrome/Edge:**
+          1. Download `chrome-mv3-*.zip`
+          2. Unzip the file
+          3. Go to `chrome://extensions/` (or `edge://extensions/`)
+          4. Enable "Developer mode"
+          5. Click "Load unpacked" and select the unzipped folder
+
+          **Firefox:**
+          1. Download `firefox-mv2-*.zip`
+          2. Go to `about:debugging#/runtime/this-firefox`
+          3. Click "Load Temporary Add-on"
+          4. Select the zip file directly
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
